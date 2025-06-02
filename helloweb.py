@@ -26,8 +26,9 @@ class Server(TCPServer):
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):
 
-    def __init__(self, display_text, *args, **kwargs):
-        self.display_text = display_text
+    def __init__(self, *args, **kwargs):
+        self.display_text = kwargs.pop('display_text')
+        self.display_http_headers = kwargs.pop('display_http_headers', False)
         super().__init__(*args, **kwargs)
 
     def do_HEAD(self):
@@ -41,6 +42,14 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
+
+        if self.display_http_headers:
+
+            for key, val in os.environ.items():
+                self.wfile.write('{}: {}\n'.format(key, val).encode())
+
+            self.wfile.write('\n'.encode())
+
         self.wfile.write('Hello from {}\n'.format(self.display_text).encode())
 
     def log_message(self, message, *args):
@@ -61,6 +70,7 @@ def parse():
     parser.add_argument('-p', '--port', type=int, default=8080, help='Port to listen on')
     parser.add_argument('-d', '--display-text', default=os.environ.get('HELLOWEB_DISPLAY_TEXT', socket.getfqdn()), help='Text to return in HTTP response')
     parser.add_argument('-e', '--from-env-var', default=os.environ.get('HELLOWEB_FROM_ENV_VAR'), help='Environment variable to return in HTTP response (overrides --display-text)')
+    parser.add_argument('-x', '--display-http-headers', default=os.environ.get('HELLOWEB_DISPLAY_HTTP_HEADERS', 'false').lower() == 'true', help='Display HTTP headers in response (default: false)')
     args = parser.parse_args()
 
     if args.from_env_var:
@@ -96,7 +106,8 @@ def main(server_class=HTTPServer, handler_class=HTTPRequestHandler):
 
     args = parse()
     server_address = ('', args.port)
-    handler = partial(HTTPRequestHandler, args.display_text)
+
+    handler = partial(HTTPRequestHandler, display_text=args.display_text, display_http_headers=args.display_http_headers)
     httpd = Server(server_address, handler)
     logging.info('Listening on {}:{}'.format(*httpd.socket.getsockname()))
     logging.info('HTTP display text: {}'.format(args.display_text))
