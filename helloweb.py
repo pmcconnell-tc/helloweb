@@ -45,7 +45,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 
         if self.display_http_headers:
 
-            for key, val in os.environ.items():
+            for key, val in self.headers.items():
                 self.wfile.write('{}: {}\n'.format(key, val).encode())
 
             self.wfile.write('\n'.encode())
